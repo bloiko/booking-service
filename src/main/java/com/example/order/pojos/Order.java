@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
 import javax.persistence.*;
+import java.util.Objects;
 
 @Entity
 @Table(name = "TICKET_ORDER")
@@ -59,4 +60,18 @@ public class Order {
 //        this.username = username;
 //        this.ticket = ticket;
 //    }
+
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Order order = (Order) o;
+        return Objects.equals(id, order.id) && Objects.equals(username, order.username) && Objects.equals(ticket, order.ticket);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, username, ticket);
+    }
 }

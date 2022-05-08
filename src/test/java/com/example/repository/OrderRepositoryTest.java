@@ -16,6 +16,7 @@ import javax.annotation.Resource;
 import java.util.Date;
 import java.util.List;
 
+import static com.example.TestHelper.buildOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -32,8 +33,8 @@ public class OrderRepositoryTest {
     @Test
     public void givenStudent_whenSave_thenGetOk() {
         Date date = new Date(2022, 20, 20);
-        Ticket ticket = new Ticket(1L, "source", "destination", date, 1000L);
-        Order order = new Order(1L, "testUsername", ticket);
+        Order order = buildOrder(date, 1L, "source", "destination", "testUsername");
+
         orderRepository.save(order);
 
         List<Order> all = orderRepository.findAll();
@@ -43,6 +44,6 @@ public class OrderRepositoryTest {
         assertEquals("source", ticket2.getSource());
         assertEquals("destination", ticket2.getDestination());
         assertEquals(date, ticket2.getDate());
-        assertEquals(ticket.getPrice(), ticket2.getPrice());
+        assertEquals(order.getTicket().getPrice(), ticket2.getPrice());
     }
 }

@@ -1,5 +1,6 @@
 package com.example.order;
 
+import static com.example.TestHelper.buildOrder;
 import static com.sun.javafx.fxml.expression.Expression.get;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.http.MediaType.APPLICATION_JSON_UTF8;
@@ -66,8 +67,8 @@ public class OrderControllerIT {
     @Test
     public void testRetrieveOrders() throws Exception {
         Date date = new Date(2022, 20, 20);
-        Ticket ticket = new Ticket(1L, "source", "destination", date, 1000L);
-        Order order = new Order(1L, "testUsername", ticket);
+        Order order = buildOrder(date, 1L, "source", "destination", "testUsername");
+
         HttpEntity<String> entity = new HttpEntity<String>(null, headers);
 
         this.mockMvc.perform(
@@ -81,15 +82,15 @@ public class OrderControllerIT {
         assertEquals("source", ticket2.getSource());
         assertEquals("destination", ticket2.getDestination());
         assertEquals(date, ticket2.getDate());
-        assertEquals(ticket.getPrice(), ticket2.getPrice());
+        assertEquals(order.getTicket().getPrice(), ticket2.getPrice());
 
     }
 
     @Test
     public void addCourse() {
         Date date = new Date(2022, 20, 20);
-        Ticket ticket = new Ticket(1L, "source", "destination", date, 1000L);
-        Order order = new Order(1L, "testUsername", ticket);
+        Order order = buildOrder(date, 1L, "source", "destination", "testUsername");
+
         HttpEntity<Order> entity = new HttpEntity<Order>(order, headers);
 
         ResponseEntity<String> response = restTemplate.exchange(
@@ -103,7 +104,7 @@ public class OrderControllerIT {
         assertEquals("source", ticket2.getSource());
         assertEquals("destination", ticket2.getDestination());
         assertEquals(date, ticket2.getDate());
-        assertEquals(ticket.getPrice(), ticket2.getPrice());
+        assertEquals(order.getTicket().getPrice(), ticket2.getPrice());
 
     }
 
