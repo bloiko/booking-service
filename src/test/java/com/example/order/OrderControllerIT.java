@@ -1,46 +1,31 @@
 package com.example.order;
 
-import static com.example.TestHelper.buildOrder;
-import static com.sun.javafx.fxml.expression.Expression.get;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.springframework.http.MediaType.APPLICATION_JSON_UTF8;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-
-import java.util.Date;
-import java.util.List;
-
 import com.example.DbConfiguration;
 import com.example.JmsConfig;
 import com.example.TicketApplication;
 import com.example.order.pojos.Order;
 import com.example.order.pojos.Ticket;
 import com.example.order.repository.OrderRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.json.JSONException;
-import org.junit.Assert;
+import org.assertj.core.util.Lists;
 import org.junit.Test;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.context.annotation.PropertySource;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
 import org.springframework.jms.core.JmsTemplate;
-import org.springframework.jms.support.converter.SimpleMessageConverter;
+import org.springframework.test.annotation.Rollback;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.context.support.AnnotationConfigContextLoader;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.context.WebApplicationContext;
 
-import javax.jms.ConnectionFactory;
+import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import static com.example.TestHelper.buildOrder;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
 @RunWith(SpringRunner.class)
@@ -49,7 +34,6 @@ import javax.jms.ConnectionFactory;
 @ContextConfiguration(
         classes = { DbConfiguration.class, JmsConfig.class},
         loader = AnnotationConfigContextLoader.class)
-@Transactional
 @SpringBootTest(classes = TicketApplication.class)
 public class OrderControllerIT {
 
@@ -64,49 +48,50 @@ public class OrderControllerIT {
     OrderController orderController;
 
 
-
+    @Transactional
+    @Rollback
     @Test
-    public void testRetrieveOrders() throws Exception {
+    public void testRetrieveOrdersSync() throws Exception {
         Date date = new Date(2022, 20, 20);
-        Order order = buildOrder(date, 1L, "source", "destination", "testUsername");
+        Order order = buildOrder(date, 1L, "source1", "destination1", "testUsername1");
 
         orderController.orderBook(order);
 
-        List<Order> all = orderRepository.findAll();
-        Order order2 = all.get(0);
-        Ticket ticket2 = order2.getTicket();
-        Assert.assertEquals("testUsername", order2.getUsername());
-        Assert.assertEquals("source", ticket2.getSource());
-        Assert.assertEquals("destination", ticket2.getDestination());
-        Assert.assertEquals(date, ticket2.getDate());
-        Assert.assertEquals(order.getTicket().getPrice(), ticket2.getPrice());
+        Thread.sleep(100);
 
+        List<Order> all = orderRepository.findAll();
+        assertTrue(all.stream()
+                .anyMatch(orderTemp -> areOrdersEqual(orderTemp, order)));
     }
 
-//    @Test
-//    public void addCourse() {
-//        Date date = new Date(2022, 20, 20);
-//        Order order = buildOrder(date, 1L, "source", "destination", "testUsername");
-//
-//        HttpEntity<Order> entity = new HttpEntity<Order>(order, headers);
-//
-//        ResponseEntity<String> response = restTemplate.exchange(
-//                createURLWithPort("/order"),
-//                HttpMethod.POST, entity, String.class);
-//
-//        List<Order> all = orderRepository.findAll();
-//        Order order2 = all.get(0);
-//        Ticket ticket2 = order2.getTicket();
-//        assertEquals("testUsername", order2.getUsername());
-//        assertEquals("source", ticket2.getSource());
-//        assertEquals("destination", ticket2.getDestination());
-//        assertEquals(date, ticket2.getDate());
-//        assertEquals(order.getTicket().getPrice(), ticket2.getPrice());
-//
-//    }
-//
-//    private String createURLWithPort(String uri) {
-//        return "http://localhost:" + port + uri;
-//    }
 
+    @Transactional
+    @Rollback
+    @Test
+    public void testRetrieveOrdersAsync() throws Exception {
+        Date date = new Date(2022, 20, 20);
+        Order order1 = buildOrder(date, 0, "source", "destination", "testUsername");
+        Order order2 = buildOrder(date, 0, "source2", "destination2", "testUsername2");
+        Order order3 = buildOrder(date, 0, "source3", "destination3", "testUsername3");
+        List<Order> orders = Lists.newArrayList(order1, order2, order3);
+
+        orders.parallelStream()
+                .map(order -> orderController.orderBook(order))
+                .collect(Collectors.toList());
+
+        Thread.sleep(10000);
+
+        List<Order> all = orderRepository.findAll();
+        assertEquals(all.size(), 3);
+    }
+
+    private boolean areOrdersEqual(Order orderTemp, Order order) {
+        Ticket ticketTemp = orderTemp.getTicket();
+        Ticket ticket = order.getTicket();
+
+        return orderTemp.getUsername().equals(order.getUsername()) &&
+                ticketTemp.getSource().equals(ticket.getSource()) &&
+                ticketTemp.getDestination().equals(ticket.getDestination()) &&
+                ticketTemp.getPrice().equals(ticket.getPrice());
+    }
 }
